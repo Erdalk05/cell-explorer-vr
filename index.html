@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!--
+      Viewport: width=device-width keeps Meta Quest browser from
+      scaling the page before WebXR takes over the frame.
+    -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <title>Cell Explorer VR</title>
+
+    <!-- A-Frame 1.6 — WebXR-ready, runs on Meta Quest browser -->
+    <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+
+    <!-- Custom components (must load before a-scene is parsed) -->
+    <script src="scripts/movement.js"></script>
+    <script src="scripts/organelles.js"></script>
+
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { background: #060d08; overflow: hidden; }
+
+      /* Quest "Enter VR" button — keep it visible and large */
+      .a-enter-vr-button {
+        width: 80px !important;
+        height: 80px !important;
+        bottom: 24px !important;
+        right: 24px !important;
+        border-radius: 50% !important;
+      }
+    </style>
+  </head>
+
+  <body>
+    <!--
+      ┌─────────────────────────────────────────────────────────────┐
+      │  CELL EXPLORER VR — inside a living cell                    │
+      │                                                             │
+      │  Atmosphere: cytoplasm yellow-green (#0d2211 bg)            │
+      │  Membrane  : large semi-transparent teal sphere (r = 20)    │
+      │  Controls  : WASD / Arrow keys  +  Quest left thumbstick    │
+      └─────────────────────────────────────────────────────────────┘
+    -->
+    <a-scene
+      background="color: #060d08"
+      fog="type: exponential; color: #0d2211; density: 0.028"
+      renderer="antialias: true; colorManagement: true; physicallyCorrectLights: true"
+      vr-mode-ui="enabled: true"
+      loading-screen="backgroundColor: #060d08; dotsColor: #52d4a4"
+      shadow="type: pcfsoft"
+    >
+
+      <!-- ═══════════════════════ ASSETS ═══════════════════════ -->
+      <a-assets timeout="10000">
+        <!--
+          Drop real files here as the project grows:
+          <a-asset-item id="nucleus-model"      src="models/nucleus.glb"></a-asset-item>
+          <a-asset-item id="mitochondria-model" src="models/mitochondria.glb"></a-asset-item>
+          <audio        id="cytoplasm-ambient"  src="audio/ambient.mp3" preload="auto"></audio>
+        -->
+      </a-assets>
+
+      <!-- ═══════════════════════ CELL MEMBRANE ═══════════════════ -->
+      <!--
+        Radius 20 m so the user (at eye-level 1.6 m) is fully enclosed.
+        side: double  → visible from the inside.
+        The slow pulse animation makes it feel alive.
+      -->
+      <a-sphere
+        id="cell-membrane"
+        radius="20"
+        position="0 0 0"
+        material="
+          color:       #52d4a4;
+          opacity:     0.18;
+          transparent: true;
+          side:        double;
+          roughness:   0.05;
+          metalness:   0.4;
+          wireframe:   false;
+          depthWrite:  false;
+        "
+        animation="
+          property: scale;
+          to:       1.025 1.025 1.025;
+          dir:      alternate;
+          dur:      5000;
+          loop:     true;
+          easing:   easeInOutSine;
+        "
+      ></a-sphere>
+
+      <!-- Inner glow layer — slightly smaller, more opaque, warmer tint -->
+      <a-sphere
+        radius="19.4"
+        position="0 0 0"
+        material="
+          color:       #38b48a;
+          opacity:     0.07;
+          transparent: true;
+          side:        back;
+          roughness:   1;
+          depthWrite:  false;
+        "
+      ></a-sphere>
+
+      <!-- ═══════════════════════ CYTOPLASM ENVIRONMENT ══════════ -->
+
+      <!-- Ground: viscous gel floor -->
+      <a-circle
+        radius="20"
+        rotation="-90 0 0"
+        position="0 -0.02 0"
+        material="
+          color:       #0d2914;
+          opacity:     0.9;
+          roughness:   1;
+          metalness:   0;
+        "
+      ></a-circle>
+
+      <!-- Cytoplasm haze: a soft, oversized inner sphere for ambient scatter -->
+      <a-sphere
+        radius="19"
+        position="0 2 0"
+        material="
+          color:       #1a3d22;
+          opacity:     0.12;
+          transparent: true;
+          side:        back;
+          roughness:   1;
+          depthWrite:  false;
+        "
+      ></a-sphere>
+
+      <!-- ═══════════════════════ NUCLEUS ════════════════════════ -->
+      <!--
+        Central organelle — the "sun" of the cell.
+        Warm amber glow; the user can walk around it.
+      -->
+      <a-entity id="nucleus" position="0 2.5 -6">
+
+        <!-- Outer nuclear envelope (double membrane) -->
+        <a-sphere
+          radius="2.8"
+          material="
+            color:       #e8943a;
+            opacity:     0.28;
+            transparent: true;
+            side:        double;
+            roughness:   0.1;
+            metalness:   0.5;
+            depthWrite:  false;
+          "
+          animation="
+            property: rotation;
+            to:       0 360 0;
+            dur:      40000;
+            loop:     true;
+            easing:   linear;
+          "
+        ></a-sphere>
+
+        <!-- Inner nucleoplasm -->
+        <a-sphere
+          radius="2.2"
+          material="
+            color:       #f0a84a;
+            opacity:     0.55;
+            transparent: true;
+            side:        front;
+            roughness:   0.2;
+            metalness:   0.3;
+          "
+        ></a-sphere>
+
+        <!-- Nucleus point light — warms the surrounding cytoplasm -->
+        <a-light
+          type="point"
+          color="#f5b85a"
+          intensity="1.8"
+          distance="14"
+          decay="2"
+        ></a-light>
+
+        <!-- Nucleolus — dense inner spot -->
+        <a-sphere
+          radius="0.7"
+          position="0.4 0.3 -0.5"
+          material="color: #d4701a; opacity: 0.9; roughness: 0.3;"
+        ></a-sphere>
+      </a-entity>
+
+      <!-- ═══════════════════════ ORGANELLE PLACEHOLDERS ══════════ -->
+
+      <!-- Mitochondria cluster (right side) -->
+      <a-entity id="mitochondria-group" position="5 1.8 -3">
+        <a-entity mito-organelle="index: 0; color: #c0392b; ox: 0;   oy: 0;    oz: 0"></a-entity>
+        <a-entity mito-organelle="index: 1; color: #e74c3c; ox: 1.4; oy: 0.6;  oz: -1"></a-entity>
+        <a-entity mito-organelle="index: 2; color: #a93226; ox: -1;  oy: -0.4; oz: 0.8"></a-entity>
+      </a-entity>
+
+      <!-- Endoplasmic reticulum suggestion (left side, layered discs) -->
+      <a-entity id="er-group" position="-6 2 -2">
+        <a-entity er-stack="layers: 5; color: #5b84c4; spacing: 0.55"></a-entity>
+        <a-light type="point" color="#4a73b3" intensity="0.6" distance="5" decay="2"></a-light>
+      </a-entity>
+
+      <!-- Ribosomes: small scattered dots -->
+      <a-entity id="ribosomes" ribosome-scatter="count: 40; radius: 14; color: #8e44ad"></a-entity>
+
+      <!-- Vacuole (back-left, large transparent bubble) -->
+      <a-sphere
+        position="-5 3 7"
+        radius="2.1"
+        material="
+          color:       #aee8f5;
+          opacity:     0.15;
+          transparent: true;
+          side:        double;
+          roughness:   0;
+          metalness:   0.8;
+          depthWrite:  false;
+        "
+        animation="
+          property: position;
+          to:       -5 3.6 7;
+          dir:      alternate;
+          dur:      6000;
+          loop:     true;
+          easing:   easeInOutSine;
+        "
+      ></a-sphere>
+
+      <!-- ═══════════════════════ PARTICLE FIELD ═════════════════ -->
+      <!--
+        Simulates cytoplasmic proteins / solutes drifting through the gel.
+        Implemented as a small set of drifting spheres via the organelles component.
+      -->
+      <a-entity id="cytoplasm-particles" cyto-particles="count: 60; radius: 17"></a-entity>
+
+      <!-- ═══════════════════════ LIGHTING ═══════════════════════ -->
+
+      <!-- Ambient: very low — the cell is dimly lit from within -->
+      <a-light type="ambient" color="#1a4d2e" intensity="0.6"></a-light>
+
+      <!-- Hemisphere sky/ground: cool cyan from above, warm amber from below -->
+      <a-light
+        type="hemisphere"
+        color="#2d8f6f"
+        ground-color="#3d2a08"
+        intensity="0.5"
+      ></a-light>
+
+      <!-- Membrane edge highlight: distant directional skimming the sphere wall -->
+      <a-light
+        type="directional"
+        position="10 8 -10"
+        color="#5ee8b0"
+        intensity="0.4"
+        cast-shadow="false"
+      ></a-light>
+
+      <!-- ═══════════════════════ FLOATING LABELS ════════════════ -->
+      <a-entity
+        position="0 4.8 -8"
+        look-at="[camera]"
+      >
+        <a-text
+          value="NUCLEUS"
+          align="center"
+          color="#f5c26b"
+          width="3.5"
+          opacity="0.7"
+          position="0 0.1 0"
+        ></a-text>
+      </a-entity>
+
+      <a-entity position="5.2 3.5 -3" look-at="[camera]">
+        <a-text value="MITOCHONDRIA" align="center" color="#e07070" width="3" opacity="0.7"></a-text>
+      </a-entity>
+
+      <a-entity position="-6.2 3.5 -2" look-at="[camera]">
+        <a-text value="ENDOPLASMIC\nRETICULUM" align="center" color="#7eb3e8" width="3" opacity="0.7"></a-text>
+      </a-entity>
+
+      <a-entity position="-4.8 5.5 7" look-at="[camera]">
+        <a-text value="VACUOLE" align="center" color="#aee8f5" width="3" opacity="0.7"></a-text>
+      </a-entity>
+
+      <!-- ═══════════════════════ HUD HINT (desktop) ═════════════ -->
+      <a-entity id="hud" position="0 0 -1.2" rotation="0 0 0">
+        <!-- Attaches to camera so it follows the view -->
+      </a-entity>
+
+      <!-- ═══════════════════════ SKY ════════════════════════════ -->
+      <a-sky color="#030a05"></a-sky>
+
+      <!-- ═══════════════════════ CAMERA RIG ════════════════════ -->
+      <!--
+        Positioned at the cell interior, near the membrane wall.
+        cell-locomotion handles WASD (desktop) + Quest left-stick (VR).
+        The rig stays at y=0; camera component adds eye-level offset.
+      -->
+      <a-entity
+        id="rig"
+        position="0 0 10"
+        cell-locomotion="speed: 3.5; boundary: 18.5"
+      >
+        <!-- Desktop / 3DoF camera -->
+        <a-camera
+          id="camera"
+          look-controls="pointerLockEnabled: true; reverseMouseDrag: false"
+          wasd-controls="enabled: false"
+          fov="80"
+          near="0.05"
+          far="100"
+        >
+          <!-- Crosshair cursor — shown outside VR mode only -->
+          <a-cursor
+            id="cursor"
+            color="#52d4a4"
+            opacity="0.7"
+            raycaster="objects: .interactive; far: 25"
+            animation__click="
+              property: scale;
+              startEvents: click;
+              easing: easeOutCubic;
+              dur: 200;
+              from: 0.5 0.5 0.5;
+              to: 1 1 1;
+            "
+          ></a-cursor>
+
+          <!-- Desktop-only info panel (visible only in flat mode) -->
+          <a-plane
+            id="desktop-hint"
+            position="0 -0.38 -1"
+            width="0.9"
+            height="0.09"
+            material="color: #000; opacity: 0.45; transparent: true"
+            visible-in-vr-mode="false"
+          >
+            <a-text
+              value="WASD / Arrows — move   |   Mouse — look   |   Enter VR — Meta Quest"
+              align="center"
+              color="#52d4a4"
+              width="2"
+              position="0 0 0.001"
+            ></a-text>
+          </a-plane>
+        </a-camera>
+
+        <!-- Quest 6DoF controllers — laser pointer + thumbstick locomotion -->
+        <a-entity
+          id="left-controller"
+          laser-controls="hand: left"
+          raycaster="objects: .interactive; far: 25; showLine: true; lineColor: #52d4a4; lineOpacity: 0.6"
+        ></a-entity>
+
+        <a-entity
+          id="right-controller"
+          laser-controls="hand: right"
+          raycaster="objects: .interactive; far: 25; showLine: true; lineColor: #52d4a4; lineOpacity: 0.6"
+        ></a-entity>
+      </a-entity>
+
+    </a-scene>
+  </body>
+</html>
