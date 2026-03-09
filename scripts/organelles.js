@@ -330,6 +330,115 @@ AFRAME.registerComponent('golgi-apparatus', {
 });
 
 /* ═══════════════════════════════════════════════════════════════════════════
+ * er-network
+ * Endoplasmic reticulum rendered as a tube network — curved CatmullRom paths
+ * representing the folded membrane tunnels, far more realistic than flat discs.
+ *
+ * Schema: tubes, color
+ * ═══════════════════════════════════════════════════════════════════════════ */
+AFRAME.registerComponent('er-network', {
+  schema: {
+    tubes: { type: 'number', default: 9     },
+    color: { type: 'color',  default: '#3498db' },
+  },
+
+  init() {
+    const { tubes, color } = this.data;
+    const rng  = seededRng(77);
+    const col  = new THREE.Color(color);
+
+    for (let t = 0; t < tubes; t++) {
+      /* 4 random control points within a ±2.5 m bounding box */
+      const pts = Array.from({ length: 4 }, () =>
+        new THREE.Vector3(
+          (rng() - 0.5) * 5.0,
+          (rng() - 0.5) * 3.5,
+          (rng() - 0.5) * 4.0,
+        )
+      );
+      const curve  = new THREE.CatmullRomCurve3(pts);
+      const tubeR  = 0.065 + rng() * 0.05;
+      const geo    = new THREE.TubeGeometry(curve, 28, tubeR, 8, false);
+
+      const mat = new THREE.MeshPhysicalMaterial({
+        color:            col,
+        emissive:         col,
+        emissiveIntensity: 0.55,
+        opacity:          0.62,
+        transparent:      true,
+        roughness:        0.3,
+        metalness:        0.25,
+        side:             THREE.DoubleSide,
+        depthWrite:       false,
+      });
+
+      this.el.object3D.add(new THREE.Mesh(geo, mat));
+    }
+  },
+});
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * microtubules
+ * Curved tubes connecting organelle positions — the cytoskeletal highway.
+ * Placed at world root (position 0,0,0) using absolute organelle coords.
+ *
+ * Schema: count, color
+ * ═══════════════════════════════════════════════════════════════════════════ */
+AFRAME.registerComponent('microtubules', {
+  schema: {
+    count: { type: 'number', default: 14    },
+    color: { type: 'color',  default: '#40d4a4' },
+  },
+
+  init() {
+    const { count, color } = this.data;
+    const rng = seededRng(88);
+    const col = new THREE.Color(color);
+
+    /* World-space anchor points (organelle centres) */
+    const anchors = [
+      new THREE.Vector3(  0,  2.5, -7  ),   // nucleus
+      new THREE.Vector3(  6,  1.5, -3  ),   // mitochondria
+      new THREE.Vector3( -7,  1.5, -1  ),   // ER
+      new THREE.Vector3(  5,  1.5,  5  ),   // golgi
+      new THREE.Vector3(  3,  3.0,  3  ),   // ribosomes
+      new THREE.Vector3( -3,  2.0, -4  ),   // interior fill
+      new THREE.Vector3(  1,  1.0,  0  ),   // interior fill
+    ];
+
+    const mat = new THREE.MeshPhysicalMaterial({
+      color:            col,
+      emissive:         col,
+      emissiveIntensity: 0.7,
+      opacity:          0.42,
+      transparent:      true,
+      roughness:        0.1,
+      depthWrite:       false,
+    });
+
+    for (let i = 0; i < count; i++) {
+      const a = anchors[Math.floor(rng() * anchors.length)];
+      const b = anchors[Math.floor(rng() * anchors.length)];
+      if (a === b) continue;
+
+      /* Natural bow in the middle — tubes arc rather than go straight */
+      const mid = a.clone().lerp(b, 0.5).add(
+        new THREE.Vector3(
+          (rng() - 0.5) * 3.5,
+          (rng() - 0.5) * 2.5,
+          (rng() - 0.5) * 3.5,
+        )
+      );
+
+      const curve = new THREE.QuadraticBezierCurve3(a, mid, b);
+      const geo   = new THREE.TubeGeometry(curve, 24, 0.022 + rng() * 0.018, 5, false);
+
+      this.el.object3D.add(new THREE.Mesh(geo, mat.clone()));
+    }
+  },
+});
+
+/* ═══════════════════════════════════════════════════════════════════════════
  * cyto-particles
  * Fine drifting dots — dissolved proteins and metabolites in the cytoplasm.
  *
