@@ -195,13 +195,23 @@
       <!-- ══════════════════════ SKY ══════════════════════ -->
       <a-sky color="#030a05"></a-sky>
 
-      <!-- ══════════════════════ CAMERA RIG ══════════════════════ -->
-      <a-entity id="rig" position="0 0 11" cell-locomotion="speed: 3.5; boundary: 18.5">
+      <!-- ══════════════════════ CAMERA RIG ══════════════════════
+           Rig stays at y=0 (floor level).
+           cell-locomotion sets camera userHeight=1.6 so the eye
+           position is always 1.6 m above the floor in desktop mode.
+           In VR, WebXR tracking provides real-world standing height.
+      -->
+      <a-entity
+        id="rig"
+        position="0 0 11"
+        cell-locomotion="speed: 4.0; acceleration: 12; friction: 10; boundary: 18.5; playerHeight: 1.6"
+      >
 
         <a-camera
           id="camera"
           look-controls="pointerLockEnabled: true; reverseMouseDrag: false"
           wasd-controls="enabled: false"
+          camera="userHeight: 1.6"
           fov="80" near="0.05" far="100"
         >
           <a-cursor
