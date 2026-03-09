@@ -2,12 +2,103 @@
  * organelles.js — procedural geometry components for Cell Explorer VR
  *
  * Components:
+ *  · gltf-emissive    — post-load emissive boost for GLTF/GLB models
+ *  · nucleus-pores    — nuclear pore complex rings on outer nuclear envelope
  *  · mito-organelle   — single mitochondrion (elongated pill + wireframe cristae)
  *  · er-stack         — endoplasmic reticulum (layered flat discs)
  *  · ribosome-scatter — cloud of small ribosome spheres
  *  · golgi-apparatus  — stack of curved tori (Golgi cisternae)
  *  · cyto-particles   — drifting cytoplasmic protein / solute dots
  */
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * gltf-emissive
+ * After a GLTF/GLB model loads, traverses every mesh in the hierarchy and
+ * sets an emissive colour + intensity so the model self-illuminates.
+ *
+ * Schema: color (hex), intensity (0–1+)
+ * ═══════════════════════════════════════════════════════════════════════════ */
+AFRAME.registerComponent('gltf-emissive', {
+  schema: {
+    color:     { type: 'color',  default: '#ff6600' },
+    intensity: { type: 'number', default: 0.45      },
+  },
+
+  init() {
+    this.el.addEventListener('model-loaded', () => {
+      const mesh = this.el.getObject3D('mesh');
+      if (!mesh) return;
+      const emissive = new THREE.Color(this.data.color);
+      mesh.traverse(node => {
+        if (!node.isMesh) return;
+        const mats = Array.isArray(node.material) ? node.material : [node.material];
+        mats.forEach(m => {
+          m.emissive          = emissive.clone();
+          m.emissiveIntensity = this.data.intensity;
+          m.needsUpdate       = true;
+        });
+      });
+    });
+  },
+});
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * nucleus-pores
+ * Distributes nuclear-pore-complex rings uniformly over a sphere surface
+ * using the Fibonacci (golden-angle) lattice.
+ *
+ * Each pore is a small torus tilted to face outward from the sphere centre.
+ *
+ * Schema: count, radius (sphere surface radius), color
+ * ═══════════════════════════════════════════════════════════════════════════ */
+AFRAME.registerComponent('nucleus-pores', {
+  schema: {
+    count:  { type: 'number', default: 28      },
+    radius: { type: 'number', default: 2.82    },
+    color:  { type: 'color',  default: '#e8aa40' },
+  },
+
+  init() {
+    const { count, radius, color } = this.data;
+    const PHI = (1 + Math.sqrt(5)) / 2;  // golden ratio
+
+    for (let i = 0; i < count; i++) {
+      const theta = 2 * Math.PI * i / PHI;               // longitude
+      const phi   = Math.acos(1 - 2 * (i + 0.5) / count); // latitude
+
+      const x = radius * Math.sin(phi) * Math.cos(theta);
+      const y = radius * Math.cos(phi);
+      const z = radius * Math.sin(phi) * Math.sin(theta);
+
+      /* Outward-facing normal for torus orientation */
+      const nx = x / radius, ny = y / radius, nz = z / radius;
+
+      const pore = document.createElement('a-torus');
+      pore.setAttribute('radius',          '0.13');
+      pore.setAttribute('radius-tubular',  '0.025');
+      pore.setAttribute('segments-radial', '12');
+      pore.setAttribute('segments-tubular','8');
+      pore.setAttribute('position',        `${x.toFixed(3)} ${y.toFixed(3)} ${z.toFixed(3)}`);
+      pore.setAttribute('material', `
+        color: ${color}; opacity: 0.82; transparent: true;
+        roughness: 0.2; metalness: 0.6; depthWrite: false;
+      `);
+
+      /* Rotate the torus so its normal aligns with the radial direction */
+      const up    = new THREE.Vector3(0, 1, 0);
+      const outward = new THREE.Vector3(nx, ny, nz);
+      const q     = new THREE.Quaternion().setFromUnitVectors(up, outward);
+      const e     = new THREE.Euler().setFromQuaternion(q, 'XYZ');
+      pore.setAttribute('rotation', `
+        ${THREE.MathUtils.radToDeg(e.x).toFixed(2)}
+        ${THREE.MathUtils.radToDeg(e.y).toFixed(2)}
+        ${THREE.MathUtils.radToDeg(e.z).toFixed(2)}
+      `);
+
+      this.el.appendChild(pore);
+    }
+  },
+});
 
 /* ─── Seeded LCG pseudo-random — deterministic layouts between reloads ─── */
 function seededRng(seed) {

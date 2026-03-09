@@ -275,9 +275,11 @@ AFRAME.registerComponent('organelle-info', {
 
     const near = this._myPos.distanceTo(this._rigPos) < this.data.distance;
 
-    /* ── Audio: only act on state transitions ── */
+    /* ── Audio + task event: only act on state transitions ── */
     if (near && !this._wasNear) {
       this._playAudio();
+      /* Notify the task system that the user discovered this organelle */
+      this.el.emit('organelle-approached', { title: this.data.title }, false);
     } else if (!near && this._wasNear) {
       this._stopAudio();
     }
