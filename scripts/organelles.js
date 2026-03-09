@@ -1,17 +1,15 @@
 /**
  * organelles.js — procedural geometry components for Cell Explorer VR
  *
- * Components defined here:
- *  · mito-organelle   — single mitochondrion (pill-shaped capsule)
+ * Components:
+ *  · mito-organelle   — single mitochondrion (elongated pill + wireframe cristae)
  *  · er-stack         — endoplasmic reticulum (layered flat discs)
  *  · ribosome-scatter — cloud of small ribosome spheres
+ *  · golgi-apparatus  — stack of curved tori (Golgi cisternae)
  *  · cyto-particles   — drifting cytoplasmic protein / solute dots
  */
 
-/* ──────────────────────────────────────────────────────────────────────────
- * UTILITY: simple seeded pseudo-random (LCG) so the layout is deterministic
- * between page loads.
- * ──────────────────────────────────────────────────────────────────────── */
+/* ─── Seeded LCG pseudo-random — deterministic layouts between reloads ─── */
 function seededRng(seed) {
   let s = seed || 42;
   return () => {
@@ -20,19 +18,41 @@ function seededRng(seed) {
   };
 }
 
-/* ──────────────────────────────────────────────────────────────────────────
+/* ─── Shared label builder — floating text above each organelle ─────────── */
+function makeLabel(text, color, yOffset = 0) {
+  const wrapper = document.createElement('a-entity');
+  wrapper.setAttribute('position', `0 ${yOffset} 0`);
+  wrapper.setAttribute('look-at', '#camera');
+
+  const bg = document.createElement('a-plane');
+  bg.setAttribute('width',    text.includes('\n') ? 2.4 : text.length * 0.18 + 0.4);
+  bg.setAttribute('height',   text.includes('\n') ? 0.72 : 0.36);
+  bg.setAttribute('material', 'color: #000; opacity: 0.55; transparent: true; depthWrite: false;');
+  bg.setAttribute('position', '0 0 -0.01');
+
+  const label = document.createElement('a-text');
+  label.setAttribute('value',   text);
+  label.setAttribute('align',   'center');
+  label.setAttribute('color',   color);
+  label.setAttribute('width',   text.includes('\n') ? 2.2 : 3);
+  label.setAttribute('opacity', '1');
+  label.setAttribute('position', '0 0 0.01');
+
+  wrapper.appendChild(bg);
+  wrapper.appendChild(label);
+  return wrapper;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
  * mito-organelle
- * Renders one mitochondrion as an elongated (scaled) sphere with an inner
- * cristae suggestion (wireframe inner ellipsoid).
+ * One mitochondrion: elongated sphere (outer membrane) + wireframe ellipsoid
+ * (cristae hint). Float-animated with index-based delay for organic feel.
  *
- * Schema:
- *   color  — outer membrane colour
- *   ox/oy/oz — position offset from parent entity
- *   index  — used for staggered float animation timing
- * ──────────────────────────────────────────────────────────────────────── */
+ * Schema: color, ox/oy/oz (offset from parent), index (stagger timing)
+ * ═══════════════════════════════════════════════════════════════════════════ */
 AFRAME.registerComponent('mito-organelle', {
   schema: {
-    color: { type: 'color',  default: '#c0392b' },
+    color: { type: 'color',  default: '#e74c3c' },
     ox:    { type: 'number', default: 0 },
     oy:    { type: 'number', default: 0 },
     oz:    { type: 'number', default: 0 },
@@ -40,66 +60,42 @@ AFRAME.registerComponent('mito-organelle', {
   },
 
   init() {
-    const d = this.data;
-    const delay = d.index * 800;   // stagger floats
+    const { color, ox, oy, oz, index } = this.data;
+    const delay = index * 900;
 
-    /* Outer membrane */
+    /* Outer membrane — elongated pill shape */
     const outer = document.createElement('a-sphere');
-    outer.setAttribute('position', `${d.ox} ${d.oy} ${d.oz}`);
-    outer.setAttribute('radius', '0.6');
-    outer.setAttribute('scale', '1.9 1 1');   // elongate → oval
-    outer.setAttribute('material', `color: ${d.color}; opacity: 0.82; roughness: 0.4; metalness: 0.2;`);
-    outer.setAttribute('animation', `
-      property: position;
-      to: ${d.ox} ${d.oy + 0.25} ${d.oz};
-      dir: alternate;
-      dur: 4200;
-      delay: ${delay};
-      loop: true;
-      easing: easeInOutSine;
-    `);
+    outer.setAttribute('position', `${ox} ${oy} ${oz}`);
+    outer.setAttribute('radius', '0.65');
+    outer.setAttribute('scale',  '2.0 1 1');
+    outer.setAttribute('material', `color: ${color}; opacity: 0.88; roughness: 0.35; metalness: 0.15;`);
+    outer.setAttribute('animation', `property: position; to: ${ox} ${oy + 0.28} ${oz}; dir: alternate; dur: 4500; delay: ${delay}; loop: true; easing: easeInOutSine;`);
 
-    /* Inner cristae (wireframe ellipsoid) */
+    /* Inner cristae — wireframe ellipsoid */
     const inner = document.createElement('a-sphere');
-    inner.setAttribute('position', `${d.ox} ${d.oy} ${d.oz}`);
-    inner.setAttribute('radius', '0.42');
-    inner.setAttribute('scale', '1.7 0.8 0.8');
-    inner.setAttribute('material', `
-      color: #ff6b6b;
-      opacity: 0.35;
-      transparent: true;
-      wireframe: true;
-    `);
-    inner.setAttribute('animation', `
-      property: position;
-      to: ${d.ox} ${d.oy + 0.25} ${d.oz};
-      dir: alternate;
-      dur: 4200;
-      delay: ${delay};
-      loop: true;
-      easing: easeInOutSine;
-    `);
+    inner.setAttribute('position', `${ox} ${oy} ${oz}`);
+    inner.setAttribute('radius', '0.44');
+    inner.setAttribute('scale',  '1.8 0.75 0.75');
+    inner.setAttribute('material', `color: #ff8a8a; opacity: 0.4; transparent: true; wireframe: true;`);
+    inner.setAttribute('animation', `property: position; to: ${ox} ${oy + 0.28} ${oz}; dir: alternate; dur: 4500; delay: ${delay}; loop: true; easing: easeInOutSine;`);
 
     this.el.appendChild(outer);
     this.el.appendChild(inner);
   },
 });
 
-/* ──────────────────────────────────────────────────────────────────────────
+/* ═══════════════════════════════════════════════════════════════════════════
  * er-stack
- * Endoplasmic reticulum: a stack of flat semi-transparent discs, slightly
- * offset and rotated to suggest the folded membrane network.
+ * Endoplasmic reticulum: stacked flat cylinders representing the folded
+ * membrane network. Each disc slightly tilted and rotated.
  *
- * Schema:
- *   layers  — number of disc layers
- *   color   — disc colour
- *   spacing — vertical gap between discs
- * ──────────────────────────────────────────────────────────────────────── */
+ * Schema: layers, color, spacing
+ * ═══════════════════════════════════════════════════════════════════════════ */
 AFRAME.registerComponent('er-stack', {
   schema: {
-    layers:  { type: 'number', default: 5     },
-    color:   { type: 'color',  default: '#5b84c4' },
-    spacing: { type: 'number', default: 0.55  },
+    layers:  { type: 'number', default: 6     },
+    color:   { type: 'color',  default: '#3498db' },
+    spacing: { type: 'number', default: 0.52  },
   },
 
   init() {
@@ -108,46 +104,37 @@ AFRAME.registerComponent('er-stack', {
 
     for (let i = 0; i < layers; i++) {
       const disc = document.createElement('a-cylinder');
-      disc.setAttribute('radius',          (1.2 + rng() * 0.5).toFixed(2));
-      disc.setAttribute('height',          '0.07');
-      disc.setAttribute('position',        `${(rng() - 0.5) * 0.4} ${i * spacing} ${(rng() - 0.5) * 0.4}`);
-      disc.setAttribute('rotation',        `${(rng() - 0.5) * 20} ${rng() * 360} ${(rng() - 0.5) * 20}`);
+      disc.setAttribute('radius', (1.1 + rng() * 0.55).toFixed(2));
+      disc.setAttribute('height', '0.08');
+      disc.setAttribute('position', `${(rng() - 0.5) * 0.5} ${i * spacing} ${(rng() - 0.5) * 0.5}`);
+      disc.setAttribute('rotation', `${(rng() - 0.5) * 22} ${rng() * 360} ${(rng() - 0.5) * 22}`);
       disc.setAttribute('material', `
-        color:       ${color};
-        opacity:     0.35;
-        transparent: true;
-        side:        double;
-        roughness:   0.6;
-        metalness:   0.3;
-        depthWrite:  false;
+        color: ${color}; opacity: 0.45; transparent: true;
+        side: double; roughness: 0.5; metalness: 0.4; depthWrite: false;
       `);
       disc.setAttribute('animation', `
         property: rotation;
-        to: ${(rng() - 0.5) * 20} ${360 + rng() * 360} ${(rng() - 0.5) * 20};
-        dur: ${30000 + rng() * 20000};
-        loop: true;
-        easing: linear;
+        to: ${(rng() - 0.5) * 22} ${360 + rng() * 360} ${(rng() - 0.5) * 22};
+        dur: ${28000 + rng() * 18000};
+        loop: true; easing: linear;
       `);
       this.el.appendChild(disc);
     }
   },
 });
 
-/* ──────────────────────────────────────────────────────────────────────────
+/* ═══════════════════════════════════════════════════════════════════════════
  * ribosome-scatter
- * Scatters many tiny spheres throughout the cytoplasm volume.
- * Each ribosome gets a subtle float animation.
+ * Tiny spheres scattered throughout the cytoplasm volume, avoiding the
+ * nucleus region. Each floats gently with a random animation phase.
  *
- * Schema:
- *   count  — number of ribosomes
- *   radius — max scatter radius from parent origin
- *   color  — ribosome colour
- * ──────────────────────────────────────────────────────────────────────── */
+ * Schema: count, radius, color
+ * ═══════════════════════════════════════════════════════════════════════════ */
 AFRAME.registerComponent('ribosome-scatter', {
   schema: {
-    count:  { type: 'number', default: 40     },
+    count:  { type: 'number', default: 50     },
     radius: { type: 'number', default: 14     },
-    color:  { type: 'color',  default: '#8e44ad' },
+    color:  { type: 'color',  default: '#9b59b6' },
   },
 
   init() {
@@ -155,45 +142,108 @@ AFRAME.registerComponent('ribosome-scatter', {
     const rng = seededRng(7);
 
     for (let i = 0; i < count; i++) {
-      /* Uniform-ish distribution inside a sphere via rejection-free method */
       const theta = rng() * Math.PI * 2;
       const phi   = Math.acos(2 * rng() - 1);
-      const r     = radius * Math.cbrt(rng()); // cbrt for volume-uniform
+      const r     = radius * Math.cbrt(rng());
 
       const x = r * Math.sin(phi) * Math.cos(theta);
-      const y = (r * Math.cos(phi)) * 0.6 + 1.5; // slightly flatten vertically, raise
+      const y = (r * Math.cos(phi)) * 0.6 + 1.8;
       const z = r * Math.sin(phi) * Math.sin(theta);
 
-      /* Skip positions too close to the nucleus */
-      if (Math.sqrt(x * x + (y - 2.5) * (y - 2.5) + (z + 6) * (z + 6)) < 3.5) continue;
+      /* Skip nucleus zone */
+      if (Math.hypot(x - 0, y - 2.5, z + 6) < 3.8) continue;
 
-      const sphere = document.createElement('a-sphere');
-      sphere.setAttribute('radius', (0.06 + rng() * 0.06).toFixed(3));
-      sphere.setAttribute('position', `${x.toFixed(2)} ${y.toFixed(2)} ${z.toFixed(2)}`);
-      sphere.setAttribute('material', `color: ${color}; opacity: ${(0.6 + rng() * 0.4).toFixed(2)};`);
-      sphere.setAttribute('animation', `
+      const dot = document.createElement('a-sphere');
+      dot.setAttribute('radius',   (0.07 + rng() * 0.07).toFixed(3));
+      dot.setAttribute('position', `${x.toFixed(2)} ${y.toFixed(2)} ${z.toFixed(2)}`);
+      dot.setAttribute('material', `color: ${color}; opacity: ${(0.65 + rng() * 0.35).toFixed(2)};`);
+      dot.setAttribute('animation', `
         property: position;
-        to: ${x.toFixed(2)} ${(y + (rng() - 0.5) * 0.5).toFixed(2)} ${z.toFixed(2)};
-        dir: alternate;
-        dur: ${3000 + Math.floor(rng() * 4000)};
-        loop: true;
-        easing: easeInOutSine;
+        to: ${x.toFixed(2)} ${(y + (rng() - 0.5) * 0.55).toFixed(2)} ${z.toFixed(2)};
+        dir: alternate; dur: ${3200 + Math.floor(rng() * 4000)};
+        loop: true; easing: easeInOutSine;
       `);
-
-      this.el.appendChild(sphere);
+      this.el.appendChild(dot);
     }
   },
 });
 
-/* ──────────────────────────────────────────────────────────────────────────
- * cyto-particles
- * Fine floating dots simulating dissolved proteins and metabolites.
- * Smaller and more numerous than ribosomes, semi-transparent white/green.
+/* ═══════════════════════════════════════════════════════════════════════════
+ * golgi-apparatus
+ * Stack of tori (flat rings) representing the Golgi cisternae.
+ * Rings get progressively smaller toward the top (trans face) and are
+ * slightly curved by tilting each one, giving the classic banana-stack look.
  *
- * Schema:
- *   count  — number of particles
- *   radius — distribution radius
- * ──────────────────────────────────────────────────────────────────────── */
+ * Schema: layers, color, spacing
+ * ═══════════════════════════════════════════════════════════════════════════ */
+AFRAME.registerComponent('golgi-apparatus', {
+  schema: {
+    layers:  { type: 'number', default: 6     },
+    color:   { type: 'color',  default: '#f1c40f' },
+    spacing: { type: 'number', default: 0.38  },
+  },
+
+  init() {
+    const { layers, color, spacing } = this.data;
+
+    for (let i = 0; i < layers; i++) {
+      const t        = i / (layers - 1);           // 0 → 1 top to bottom
+      const radius   = (1.8 - t * 0.8).toFixed(2); // 1.8 → 1.0
+      const tubular  = 0.10;
+      const tiltX    = -78 + t * 10;               // slight curve
+      const tiltZ    = t * 12;
+      const yPos     = i * spacing;
+      const opacity  = (0.5 + t * 0.3).toFixed(2);  // thicker at cis face (bottom)
+
+      const ring = document.createElement('a-torus');
+      ring.setAttribute('radius',          radius);
+      ring.setAttribute('radius-tubular',  tubular);
+      ring.setAttribute('segments-tubular', '20');
+      ring.setAttribute('position',        `0 ${yPos.toFixed(2)} 0`);
+      ring.setAttribute('rotation',        `${tiltX.toFixed(1)} 0 ${tiltZ.toFixed(1)}`);
+      ring.setAttribute('material', `
+        color: ${color}; opacity: ${opacity}; transparent: true;
+        side: double; roughness: 0.3; metalness: 0.5; depthWrite: false;
+      `);
+      /* Slow spin on each cisterna — trans face rotates faster */
+      ring.setAttribute('animation', `
+        property: rotation;
+        to: ${tiltX.toFixed(1)} 360 ${tiltZ.toFixed(1)};
+        dur: ${22000 + i * 3000};
+        loop: true; easing: linear;
+      `);
+      this.el.appendChild(ring);
+    }
+
+    /* Vesicles budding off the trans face (top) */
+    const rng = seededRng(55);
+    for (let v = 0; v < 5; v++) {
+      const angle = (v / 5) * Math.PI * 2;
+      const vx = Math.cos(angle) * (1.2 + rng() * 0.5);
+      const vz = Math.sin(angle) * (1.2 + rng() * 0.5);
+      const vy = (layers - 1) * spacing + 0.3 + rng() * 0.4;
+
+      const vesicle = document.createElement('a-sphere');
+      vesicle.setAttribute('radius',   (0.12 + rng() * 0.1).toFixed(2));
+      vesicle.setAttribute('position', `${vx.toFixed(2)} ${vy.toFixed(2)} ${vz.toFixed(2)}`);
+      vesicle.setAttribute('material', `color: ${color}; opacity: 0.75; roughness: 0.2; metalness: 0.5;`);
+      vesicle.setAttribute('animation', `
+        property: position;
+        to: ${(vx * 1.4).toFixed(2)} ${(vy + 0.35).toFixed(2)} ${(vz * 1.4).toFixed(2)};
+        dir: alternate; dur: ${3500 + Math.floor(rng() * 2000)};
+        loop: true; easing: easeInOutSine;
+      `);
+      this.el.appendChild(vesicle);
+    }
+  },
+});
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * cyto-particles
+ * Fine drifting dots — dissolved proteins and metabolites in the cytoplasm.
+ *
+ * Schema: count, radius
+ * ═══════════════════════════════════════════════════════════════════════════ */
 AFRAME.registerComponent('cyto-particles', {
   schema: {
     count:  { type: 'number', default: 60 },
@@ -203,8 +253,6 @@ AFRAME.registerComponent('cyto-particles', {
   init() {
     const { count, radius } = this.data;
     const rng = seededRng(31);
-
-    /* Palette: subtle greens and cyans */
     const palette = ['#7feba0', '#52d4a4', '#a0cfb0', '#d4f0e0', '#b0e8d4'];
 
     for (let i = 0; i < count; i++) {
@@ -218,9 +266,9 @@ AFRAME.registerComponent('cyto-particles', {
 
       const color   = palette[Math.floor(rng() * palette.length)];
       const size    = (0.03 + rng() * 0.07).toFixed(3);
-      const opacity = (0.3 + rng() * 0.4).toFixed(2);
+      const opacity = (0.25 + rng() * 0.35).toFixed(2);
       const dur     = 4000 + Math.floor(rng() * 6000);
-      const drift   = ((rng() - 0.5) * 0.6).toFixed(2);
+      const drift   = ((rng() - 0.5) * 0.7).toFixed(2);
 
       const dot = document.createElement('a-sphere');
       dot.setAttribute('radius',   size);
@@ -229,12 +277,8 @@ AFRAME.registerComponent('cyto-particles', {
       dot.setAttribute('animation', `
         property: position;
         to: ${(x + parseFloat(drift)).toFixed(2)} ${(y + parseFloat(drift)).toFixed(2)} ${(z + parseFloat(drift)).toFixed(2)};
-        dir: alternate;
-        dur: ${dur};
-        loop: true;
-        easing: easeInOutSine;
+        dir: alternate; dur: ${dur}; loop: true; easing: easeInOutSine;
       `);
-
       this.el.appendChild(dot);
     }
   },
