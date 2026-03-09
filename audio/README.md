@@ -1,14 +1,28 @@
-# Audio
+# Audio Narration Files
 
-Place .mp3 / .ogg audio files here.
+Place MP3 narration clips here. Each file is loaded by the `organelle-info` component
+in `proximity.js` when a user approaches the corresponding organelle.
 
-Suggested files:
-- ambient.mp3         — low-frequency cellular heartbeat loop
-- enter.mp3           — sound when entering an organelle
-- info.mp3            — UI info-panel open chime
+Missing files are silently ignored — the info panel will still appear; only the 🔊
+speaker icon and spatial sound will be absent.
 
-Load them in index.html inside <a-assets>:
-  <audio id="ambient" src="audio/ambient.mp3" preload="auto"></audio>
+## Expected narration files
 
-Then play with:
-  <a-sound src="#ambient" autoplay="true" loop="true" positional="false"></a-sound>
+| File | Organelle | Trigger distance |
+|------|-----------|-----------------|
+| `nucleus.mp3` | Nucleus | 5 m |
+| `mitochondria.mp3` | Mitochondria | 4 m |
+| `endoplasmic-reticulum.mp3` | Endoplasmic Reticulum | 4.5 m |
+| `ribosomes.mp3` | Ribosomes | 5 m |
+| `golgi-apparatus.mp3` | Golgi Apparatus | 4 m |
+
+## Recommended format
+
+- Codec : MP3, 128 kbps
+- Duration : 10–25 seconds
+- Sample rate : 44.1 kHz, mono or stereo
+
+## Quick generation (ElevenLabs / TTS)
+
+Feed each organelle's `body` text from `index.html` into any TTS service and export
+as MP3, naming the file exactly as listed above.
