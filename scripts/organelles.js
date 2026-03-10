@@ -439,6 +439,270 @@ AFRAME.registerComponent('microtubules', {
 });
 
 /* ═══════════════════════════════════════════════════════════════════════════
+ * er-cisternae
+ * Structured rough / smooth ER:
+ *   · Oval loop tubes stacked in layers — the characteristic cisternae sheets
+ *   · Alternate sheets have ribosome beads along the tube (rough ER)
+ *   · Short vertical connecting tubes link adjacent cisternae
+ *
+ * Schema: sheets, color
+ * ═══════════════════════════════════════════════════════════════════════════ */
+AFRAME.registerComponent('er-cisternae', {
+  schema: {
+    sheets: { type: 'number', default: 7     },
+    color:  { type: 'color',  default: '#3498db' },
+  },
+
+  init() {
+    const { sheets, color } = this.data;
+    const rng    = seededRng(77);
+    const col    = new THREE.Color(color);
+    const ribCol = new THREE.Color('#9b59b6');
+
+    const mat = new THREE.MeshPhysicalMaterial({
+      color:             col,
+      emissive:          col,
+      emissiveIntensity: 0.70,
+      opacity:           0.72,
+      transparent:       true,
+      roughness:         0.25,
+      metalness:         0.2,
+      side:              THREE.DoubleSide,
+      depthWrite:        false,
+    });
+
+    const ribMat = new THREE.MeshPhysicalMaterial({
+      color:             ribCol,
+      emissive:          ribCol,
+      emissiveIntensity: 1.0,
+      opacity:           0.88,
+      transparent:       false,
+      roughness:         0.3,
+    });
+
+    const curves = [];   // kept for connecting bridges
+
+    for (let s = 0; s < sheets; s++) {
+      const yBase = (s - sheets / 2) * 0.55 + 0.4;
+
+      /* Oval loop — 8 control points, mostly in XZ plane */
+      const N   = 9;
+      const pts = [];
+      const rx  = 1.7 + rng() * 0.7;
+      const rz  = 1.0 + rng() * 0.5;
+      for (let i = 0; i < N; i++) {
+        const angle = (i / N) * Math.PI * 2;
+        pts.push(new THREE.Vector3(
+          Math.cos(angle) * rx + (rng() - 0.5) * 0.3,
+          yBase + (rng() - 0.5) * 0.4,
+          Math.sin(angle) * rz + (rng() - 0.5) * 0.3,
+        ));
+      }
+      const curve = new THREE.CatmullRomCurve3(pts, true);
+      curves.push(curve);
+
+      const tubeR = 0.060 + rng() * 0.028;
+      const geo   = new THREE.TubeGeometry(curve, 52, tubeR, 8, true);
+      this.el.object3D.add(new THREE.Mesh(geo, mat.clone()));
+
+      /* Rough ER: ribosome beads on every other sheet */
+      if (s % 2 === 0) {
+        const bead_count = 22 + Math.floor(rng() * 14);
+        for (let r = 0; r < bead_count; r++) {
+          const pt  = curve.getPoint(rng());
+          const tan = curve.getTangent(rng()).normalize();
+          /* offset bead perpendicular to tube axis */
+          const perp = new THREE.Vector3(0, 1, 0).cross(tan).normalize().multiplyScalar(0.07);
+          const bGeo = new THREE.SphereGeometry(0.045, 5, 4);
+          const bead = new THREE.Mesh(bGeo, ribMat);
+          bead.position.copy(pt).add(perp);
+          this.el.object3D.add(bead);
+        }
+      }
+    }
+
+    /* Short vertical bridges between adjacent sheets */
+    for (let c = 0; c < 6; c++) {
+      const t  = rng();
+      const s1 = Math.min(Math.floor(rng() * sheets), sheets - 2);
+      const p1 = curves[s1].getPoint(t);
+      const p2 = curves[s1 + 1].getPoint((t + 0.12) % 1);
+      const mid = p1.clone().lerp(p2, 0.5).add(
+        new THREE.Vector3((rng() - 0.5) * 0.4, 0, (rng() - 0.5) * 0.4)
+      );
+      const bridgeCurve = new THREE.CatmullRomCurve3([p1, mid, p2]);
+      const bGeo = new THREE.TubeGeometry(bridgeCurve, 10, 0.038, 6, false);
+      this.el.object3D.add(new THREE.Mesh(bGeo, mat.clone()));
+    }
+  },
+});
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * lysosome-cluster
+ * Dark purple acidic vesicles — the cell's recycling centres.
+ * Scattered near the ER/Golgi region with a malevolent acid glow.
+ *
+ * Schema: count, color
+ * ═══════════════════════════════════════════════════════════════════════════ */
+AFRAME.registerComponent('lysosome-cluster', {
+  schema: {
+    count: { type: 'number', default: 8     },
+    color: { type: 'color',  default: '#8e1fc3' },
+  },
+
+  init() {
+    const { count, color } = this.data;
+    const rng = seededRng(123);
+
+    const offsets = [
+      [-2.5, 0.8, 0.5], [1.2, -0.5, 2.0], [-1.0, 1.5, 0.8],
+      [2.0, 0.2, -0.5], [-0.8, -0.3, 1.5], [3.0, 1.0, 1.2],
+      [-2.0, 1.0, -1.0], [1.5, -1.0, -0.2],
+    ];
+
+    for (let i = 0; i < Math.min(count, offsets.length); i++) {
+      const [ox, oy, oz] = offsets[i];
+      const size  = 0.26 + rng() * 0.20;
+      const delay = i * 650;
+
+      const sphere = document.createElement('a-sphere');
+      sphere.setAttribute('radius', size.toFixed(2));
+      sphere.setAttribute('position', `${ox} ${oy} ${oz}`);
+      sphere.setAttribute('material', `
+        color: ${color}; opacity: 0.90;
+        roughness: 0.25; metalness: 0.1;
+        emissive: #55007a; emissiveIntensity: 0.85;
+      `);
+      sphere.setAttribute('animation', `
+        property: position;
+        to: ${ox.toFixed(2)} ${(oy + 0.22 + rng() * 0.1).toFixed(2)} ${oz.toFixed(2)};
+        dir: alternate; dur: ${3600 + delay}; loop: true; easing: easeInOutSine;
+      `);
+      this.el.appendChild(sphere);
+    }
+  },
+});
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * vesicle-transport
+ * Animated secretory vesicles moving between organelles along three routes:
+ *   ER → Golgi  (blue)
+ *   Golgi → cell surface  (yellow)
+ *   Mitochondria → Nucleus  (red)
+ *
+ * Placed at world root so positions are absolute.
+ * Schema: count
+ * ═══════════════════════════════════════════════════════════════════════════ */
+AFRAME.registerComponent('vesicle-transport', {
+  schema: {
+    count: { type: 'number', default: 14 },
+  },
+
+  init() {
+    const { count } = this.data;
+    const rng = seededRng(200);
+
+    const routes = [
+      { from: [-7, 1.5, -1], to: [ 5,  1.5,  5], color: '#3498db' },   // ER → Golgi
+      { from: [ 5, 1.5,  5], to: [ 2,  3.5,  9], color: '#f1c40f' },   // Golgi → membrane
+      { from: [ 6, 1.5, -3], to: [ 0,  2.5, -7], color: '#e74c3c' },   // Mito → Nucleus
+    ];
+
+    for (let i = 0; i < count; i++) {
+      const route = routes[Math.floor(rng() * routes.length)];
+
+      const fx = route.from[0] + (rng() - 0.5) * 1.5;
+      const fy = route.from[1] + (rng() - 0.5) * 1.0;
+      const fz = route.from[2] + (rng() - 0.5) * 1.5;
+      const tx = route.to[0]   + (rng() - 0.5) * 2.0;
+      const ty = route.to[1]   + (rng() - 0.5) * 1.0;
+      const tz = route.to[2]   + (rng() - 0.5) * 2.0;
+
+      const dur   = 5000 + Math.floor(rng() * 5000);
+      const delay = Math.floor(rng() * dur);
+
+      const vesicle = document.createElement('a-sphere');
+      vesicle.setAttribute('radius',   (0.09 + rng() * 0.07).toFixed(2));
+      vesicle.setAttribute('position', `${fx.toFixed(2)} ${fy.toFixed(2)} ${fz.toFixed(2)}`);
+      vesicle.setAttribute('material', `
+        color: ${route.color}; opacity: 0.85;
+        roughness: 0.15; metalness: 0.4;
+        emissive: ${route.color}; emissiveIntensity: 0.65;
+      `);
+      vesicle.setAttribute('animation', `
+        property: position;
+        from: ${fx.toFixed(2)} ${fy.toFixed(2)} ${fz.toFixed(2)};
+        to:   ${tx.toFixed(2)} ${ty.toFixed(2)} ${tz.toFixed(2)};
+        dur: ${dur}; delay: ${delay}; loop: true; easing: easeInOutSine;
+      `);
+      this.el.appendChild(vesicle);
+    }
+  },
+});
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * actin-filaments
+ * Cortical actin meshwork — thin curved filaments just inside the membrane.
+ * Forms the structural scaffold that gives the cell its shape.
+ *
+ * Schema: count, color
+ * ═══════════════════════════════════════════════════════════════════════════ */
+AFRAME.registerComponent('actin-filaments', {
+  schema: {
+    count: { type: 'number', default: 24 },
+    color: { type: 'color',  default: '#e8507a' },
+  },
+
+  init() {
+    const { count, color } = this.data;
+    const rng = seededRng(150);
+    const col = new THREE.Color(color);
+
+    const mat = new THREE.MeshPhysicalMaterial({
+      color:             col,
+      emissive:          col,
+      emissiveIntensity: 0.55,
+      opacity:           0.42,
+      transparent:       true,
+      roughness:         0.2,
+      depthWrite:        false,
+    });
+
+    for (let i = 0; i < count; i++) {
+      /* Random anchor on sphere surface — r = 14.5..16.5 */
+      const theta0 = rng() * Math.PI * 2;
+      const phi0   = Math.acos(2 * rng() - 1);
+      const r0     = 14.5 + rng() * 2.0;
+
+      /* Build arc that stays ON the sphere surface using angular increments */
+      const arcSpan = 0.35 + rng() * 0.55;   // total arc angle (radians)
+      /* Random arc direction — mix of theta vs phi rotation */
+      const dTheta = (rng() - 0.5) * 2;
+      const dPhi   = (rng() - 0.5) * 2;
+      const dLen   = Math.hypot(dTheta, dPhi) || 1;
+
+      const N   = 7;
+      const pts = [];
+      for (let p = 0; p < N; p++) {
+        const a       = (p / (N - 1) - 0.5) * arcSpan;
+        const theta   = theta0 + (dTheta / dLen) * a;
+        const phi     = phi0   + (dPhi   / dLen) * a;
+        const rPoint  = r0 + (rng() - 0.5) * 0.5;  // tiny radial wobble
+        pts.push(new THREE.Vector3(
+          rPoint * Math.sin(phi) * Math.cos(theta),
+          rPoint * Math.cos(phi) * 0.55,
+          rPoint * Math.sin(phi) * Math.sin(theta),
+        ));
+      }
+
+      const curve = new THREE.CatmullRomCurve3(pts);
+      const geo   = new THREE.TubeGeometry(curve, 12, 0.013 + rng() * 0.009, 4, false);
+      this.el.object3D.add(new THREE.Mesh(geo, mat.clone()));
+    }
+  },
+});
+
+/* ═══════════════════════════════════════════════════════════════════════════
  * cyto-particles
  * Fine drifting dots — dissolved proteins and metabolites in the cytoplasm.
  *
