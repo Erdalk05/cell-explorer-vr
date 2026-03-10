@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <title>Cell Explorer VR</title>
+
+    <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+    <script src="scripts/movement.js"></script>
+    <script src="scripts/organelles.js"></script>
+    <script src="scripts/proximity.js"></script>
+    <script src="scripts/tasks.js"></script>
+    <script src="scripts/bloom.js"></script>
+
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { background: #060d08; overflow: hidden; }
+      .a-enter-vr-button {
+        width: 80px !important; height: 80px !important;
+        bottom: 24px !important; right: 24px !important;
+        border-radius: 50% !important;
+      }
+    </style>
+  </head>
+
+  <body>
+    <a-scene
+      background="color: #060d08"
+      fog="type: exponential; color: #081208; density: 0.012"
+      renderer="antialias: true; colorManagement: true; physicallyCorrectLights: true"
+      vr-mode-ui="enabled: true"
+      loading-screen="backgroundColor: #060d08; dotsColor: #52d4a4"
+      bloom="strength: 1.8; radius: 0.85; threshold: 0.05"
+    >
+
+      <!-- ══════════════════════ ASSETS ══════════════════════ -->
+      <a-assets timeout="15000">
+        <a-asset-item id="mito-model" src="models/mitochondria.glb"></a-asset-item>
+      </a-assets>
+
+      <!-- ══════════════════════ CELL MEMBRANE ══════════════════════ -->
+      <a-sphere
+        id="cell-membrane"
+        radius="20"
+        material="
+          color: #52d4a4; opacity: 0.18; transparent: true;
+          side: double; roughness: 0.05; metalness: 0.5; depthWrite: false;
+          emissive: #2a8855; emissiveIntensity: 0.40;
+        "
+        animation="
+          property: scale; to: 1.025 1.025 1.025;
+          dir: alternate; dur: 5000; loop: true; easing: easeInOutSine;
+        "
+      ></a-sphere>
+
+      <a-sphere
+        radius="19.4"
+        material="color: #38b48a; opacity: 0.06; transparent: true; side: back; roughness: 1; depthWrite: false;
+                  emissive: #38b48a; emissiveIntensity: 0.22;"
+      ></a-sphere>
+
+      <!-- Second inner glow layer -->
+      <a-sphere
+        radius="18.5"
+        material="color: #1a5e38; opacity: 0.04; transparent: true; side: back; roughness: 1; depthWrite: false;
+                  emissive: #1a5e38; emissiveIntensity: 0.12;"
+      ></a-sphere>
+
+      <!-- ══════════════════════ CYTOPLASM ══════════════════════ -->
+      <a-circle
+        radius="20" rotation="-90 0 0" position="0 -0.02 0"
+        material="color: #0a1f0d; opacity: 0.92; roughness: 1;"
+      ></a-circle>
+
+      <a-sphere
+        radius="19"
+        material="color: #1a3d22; opacity: 0.10; transparent: true; side: back; roughness: 1; depthWrite: false;"
+      ></a-sphere>
+
+      <a-entity id="cytoplasm-particles" cyto-particles="count: 120; radius: 16"></a-entity>
+
+      <!-- Microtubule cytoskeletal network -->
+      <a-entity microtubules="count: 18; color: #40d4a4"></a-entity>
+
+      <!-- Actin cortex — pink filaments near membrane -->
+      <a-entity actin-filaments="count: 24; color: #e8507a"></a-entity>
+
+      <!-- Vesicle transport — animated cargo carriers between organelles -->
+      <a-entity vesicle-transport="count: 16"></a-entity>
+
+      <!-- ══════════════════════════════════════════════════════════
+           ORGANELLES
+           ══════════════════════════════════════════════════════════ -->
+
+      <!-- ① NUCLEUS  ·  amber  ·  centre-back -->
+      <a-entity
+        id="nucleus"
+        position="0 2.5 -7"
+        organelle-info="
+          title:    Nucleus;
+          body:     The control centre of the cell. Contains DNA and directs cell activity including growth, metabolism, and reproduction.;
+          distance: 5;
+          color:    #f5a623;
+          audio:    nucleus.mp3;
+        "
+        nucleus-pores="count: 28; radius: 2.82; color: #e8aa40"
+      >
+        <!-- Outer nuclear envelope -->
+        <a-sphere
+          radius="2.8"
+          material="
+            color: #f5a623; opacity: 0.28; transparent: true;
+            side: double; roughness: 0.1; metalness: 0.5; depthWrite: false;
+            emissive: #c07818; emissiveIntensity: 0.65;
+          "
+          animation="property: rotation; to: 0 360 0; dur: 40000; loop: true; easing: linear;"
+        ></a-sphere>
+
+        <!-- Inner nucleoplasm -->
+        <a-sphere
+          radius="2.2"
+          material="color: #f5a623; opacity: 0.72; roughness: 0.2; metalness: 0.3;
+                    emissive: #c06010; emissiveIntensity: 0.70;"
+        ></a-sphere>
+
+        <!-- Nucleolus — primary -->
+        <a-sphere
+          radius="0.72"
+          position="0.45 0.35 -0.5"
+          material="color: #e08020; opacity: 0.95; roughness: 0.3;
+                    emissive: #b05000; emissiveIntensity: 0.85;"
+        ></a-sphere>
+
+        <!-- Nucleolus — secondary (smaller) -->
+        <a-sphere
+          radius="0.38"
+          position="-0.5 -0.25 0.4"
+          material="color: #d07018; opacity: 0.92; roughness: 0.35;
+                    emissive: #904000; emissiveIntensity: 0.75;"
+        ></a-sphere>
+
+        <!-- Chromatin cloud — dense chromatin regions -->
+        <a-sphere radius="0.22" position=" 0.8 -0.6  0.3" material="color: #c05008; opacity:0.70; emissive:#a04008; emissiveIntensity:0.6;"></a-sphere>
+        <a-sphere radius="0.18" position="-0.7  0.5  0.6" material="color: #c05008; opacity:0.65; emissive:#a04008; emissiveIntensity:0.6;"></a-sphere>
+        <a-sphere radius="0.16" position=" 0.3  0.8 -0.4" material="color: #b04000; opacity:0.60; emissive:#904008; emissiveIntensity:0.5;"></a-sphere>
+        <a-sphere radius="0.20" position="-0.4 -0.7 -0.3" material="color: #c05808; opacity:0.68; emissive:#a04008; emissiveIntensity:0.6;"></a-sphere>
+
+        <!-- Pulsing corona -->
+        <a-sphere
+          radius="3.4"
+          material="color: #f5a623; opacity: 0.06; transparent: true; side: back; roughness: 1; depthWrite: false;
+                    emissive: #f5a623; emissiveIntensity: 0.55;"
+          animation="property: scale; to: 1.10 1.10 1.10; dir: alternate; dur: 3200; loop: true; easing: easeInOutSine;"
+        ></a-sphere>
+
+        <!-- Outer corona glow -->
+        <a-sphere
+          radius="4.2"
+          material="color: #f5a623; opacity: 0.03; transparent: true; side: back; roughness: 1; depthWrite: false;
+                    emissive: #f5a623; emissiveIntensity: 0.30;"
+          animation="property: scale; to: 1.06 1.06 1.06; dir: alternate; dur: 4800; loop: true; easing: easeInOutSine;"
+        ></a-sphere>
+
+        <!-- DNA orbital rings — 3 rings -->
+        <a-torus
+          radius="3.1" radius-tubular="0.048" segments-radial="80" segments-tubular="12"
+          material="color: #ffe080; opacity: 0.65; transparent: true; roughness: 0.05; metalness: 0.8; depthWrite: false;
+                    emissive: #ffcc00; emissiveIntensity: 1.4;"
+          rotation="68 0 0"
+          animation="property: rotation; to: 68 360 0; dur: 18000; loop: true; easing: linear;"
+        ></a-torus>
+        <a-torus
+          radius="3.0" radius-tubular="0.042" segments-radial="80" segments-tubular="12"
+          material="color: #ffe080; opacity: 0.50; transparent: true; roughness: 0.05; metalness: 0.8; depthWrite: false;
+                    emissive: #ffcc00; emissiveIntensity: 1.0;"
+          rotation="-42 25 0"
+          animation="property: rotation; to: -42 -360 0; dur: 26000; loop: true; easing: linear;"
+        ></a-torus>
+        <a-torus
+          radius="2.9" radius-tubular="0.035" segments-radial="64" segments-tubular="10"
+          material="color: #ffd060; opacity: 0.35; transparent: true; roughness: 0.05; metalness: 0.8; depthWrite: false;
+                    emissive: #ffaa00; emissiveIntensity: 0.75;"
+          rotation="20 -35 50"
+          animation="property: rotation; to: 20 325 50; dur: 32000; loop: true; easing: linear;"
+        ></a-torus>
+
+        <a-light type="point" color="#f5b85a" intensity="4.0" distance="22" decay="2"></a-light>
+        <a-light type="point" color="#ffd080" intensity="1.5" distance="14" decay="2" position="1.5 -1 1"></a-light>
+      </a-entity>
+
+      <!-- ② MITOCHONDRIA  ·  GLB model  ·  right side -->
+      <a-entity
+        id="mitochondria-group"
+        position="6 1.5 -3"
+        organelle-info="
+          title:    Mitochondria;
+          body:     The powerhouse of the cell. Produces ATP through cellular respiration, supplying energy for all cellular processes.;
+          distance: 4;
+          color:    #e74c3c;
+          audio:    mitochondria.mp3;
+        "
+      >
+        <a-gltf-model
+          src="#mito-model"
+          position="0 0 0"
+          scale="0.75 0.75 0.75"
+          rotation="8 20 12"
+          gltf-emissive="color: #ff6030; intensity: 0.95"
+          animation="property: position; to: 0 0.28 0; dir: alternate; dur: 4600; loop: true; easing: easeInOutSine;"
+        ></a-gltf-model>
+
+        <a-gltf-model
+          src="#mito-model"
+          position="1.6 0.5 -1.1"
+          scale="0.6 0.6 0.6"
+          rotation="-5 48 -8"
+          gltf-emissive="color: #e85020; intensity: 0.90"
+          animation="property: position; to: 1.6 0.78 -1.1; dir: alternate; dur: 5200; delay: 900; loop: true; easing: easeInOutSine;"
+        ></a-gltf-model>
+
+        <a-gltf-model
+          src="#mito-model"
+          position="-1.2 -0.3 0.9"
+          scale="0.52 0.52 0.52"
+          rotation="6 -28 5"
+          gltf-emissive="color: #ff7040; intensity: 0.85"
+          animation="property: position; to: -1.2 -0.02 0.9; dir: alternate; dur: 4100; delay: 1800; loop: true; easing: easeInOutSine;"
+        ></a-gltf-model>
+
+        <a-gltf-model
+          src="#mito-model"
+          position="0.6 -0.8 1.3"
+          scale="0.58 0.58 0.58"
+          rotation="12 62 -10"
+          gltf-emissive="color: #d03010; intensity: 0.88"
+          animation="property: position; to: 0.6 -0.52 1.3; dir: alternate; dur: 4800; delay: 2700; loop: true; easing: easeInOutSine;"
+        ></a-gltf-model>
+
+        <!-- ATP energy glow corona -->
+        <a-sphere
+          radius="3.5"
+          material="color: #ff4400; opacity: 0.04; transparent: true; side: back; roughness: 1; depthWrite: false;
+                    emissive: #ff4400; emissiveIntensity: 0.40;"
+          animation="property: scale; to: 1.08 1.08 1.08; dir: alternate; dur: 2800; loop: true; easing: easeInOutSine;"
+        ></a-sphere>
+
+        <a-light type="point" color="#ff5533" intensity="2.5" distance="12" decay="2" position="0.5 0 0"></a-light>
+        <a-light type="point" color="#ff8830" intensity="1.0" distance="8"  decay="2" position="-1 0.5 1"></a-light>
+      </a-entity>
+
+      <!-- ③ ENDOPLASMIC RETICULUM  ·  structured cisternae  ·  left side -->
+      <a-entity
+        id="er-group"
+        position="-7 1.5 -1"
+        organelle-info="
+          title:    Endoplasmic Reticulum;
+          body:     A network of folded membranes. Rough ER has ribosomes and makes proteins. Smooth ER synthesises lipids and detoxifies chemicals.;
+          distance: 4.5;
+          color:    #3498db;
+          audio:    endoplasmic-reticulum.mp3;
+        "
+      >
+        <a-entity er-cisternae="sheets: 7; color: #3498db"></a-entity>
+        <a-light type="point" color="#2980b9" intensity="2.0" distance="10" decay="2"></a-light>
+        <a-light type="point" color="#5dade2" intensity="0.8" distance="6"  decay="2" position="0.5 1.5 0"></a-light>
+      </a-entity>
+
+      <!-- ④ RIBOSOMES  ·  purple  ·  scattered -->
+      <a-entity
+        id="ribosomes-cluster"
+        position="3 3 3"
+        organelle-info="
+          title:    Ribosomes;
+          body:     Tiny molecular machines made of RNA and protein. They translate genetic instructions from mRNA into polypeptide chains (proteins).;
+          distance: 5;
+          color:    #9b59b6;
+          audio:    ribosomes.mp3;
+        "
+      >
+        <a-sphere radius="0.16" position=" 0    0    0"    material="color: #9b59b6; opacity: 0.95; emissive: #7a20aa; emissiveIntensity: 1.1;"></a-sphere>
+        <a-sphere radius="0.13" position=" 0.3  0.2  0.1" material="color: #8e44ad; opacity: 0.95; emissive: #6a1090; emissiveIntensity: 1.1;"></a-sphere>
+        <a-sphere radius="0.12" position="-0.2  0.3 -0.2" material="color: #a569bd; opacity: 0.95; emissive: #7a20aa; emissiveIntensity: 1.0;"></a-sphere>
+        <a-sphere radius="0.14" position=" 0.1 -0.2  0.3" material="color: #9b59b6; opacity: 0.95; emissive: #6a1090; emissiveIntensity: 1.1;"></a-sphere>
+        <a-sphere radius="0.11" position="-0.15 0.15 0.25" material="color: #af7ac5; opacity: 0.95; emissive: #7a20aa; emissiveIntensity: 0.9;"></a-sphere>
+      </a-entity>
+
+      <!-- Ribosome scatter — main cloud -->
+      <a-entity ribosome-scatter="count: 80; radius: 13; color: #9b59b6"></a-entity>
+
+      <!-- ⑤ GOLGI APPARATUS  ·  yellow  ·  front-right -->
+      <a-entity
+        id="golgi"
+        position="5 1.5 5"
+        organelle-info="
+          title:    Golgi Apparatus;
+          body:     The cell's postal system. Receives proteins from the ER, modifies and packages them into vesicles, then ships them to their final destinations.;
+          distance: 4;
+          color:    #f1c40f;
+          audio:    golgi-apparatus.mp3;
+        "
+      >
+        <a-entity golgi-apparatus="layers: 7; color: #f1c40f; spacing: 0.40"></a-entity>
+        <a-light type="point" color="#f39c12" intensity="2.0" distance="10" decay="2"></a-light>
+        <a-light type="point" color="#f5d73a" intensity="0.8" distance="6"  decay="2" position="0 1.5 0"></a-light>
+      </a-entity>
+
+      <!-- ⑥ LYSOSOMES  ·  dark purple  ·  scattered mid-cell -->
+      <a-entity
+        id="lysosomes"
+        position="-1 1 2"
+        organelle-info="
+          title:    Lysosomes;
+          body:     The cell's recycling centres. Contain powerful digestive enzymes that break down waste, cellular debris, and foreign invaders.;
+          distance: 4;
+          color:    #8e1fc3;
+          audio:    lysosomes.mp3;
+        "
+      >
+        <a-entity lysosome-cluster="count: 8; color: #8e1fc3"></a-entity>
+        <a-light type="point" color="#7d00cc" intensity="1.2" distance="8" decay="2"></a-light>
+      </a-entity>
+
+      <!-- ⑦ VACUOLE  ·  large translucent sphere  ·  lower-left -->
+      <a-entity
+        id="vacuole"
+        position="-4 0 4"
+        organelle-info="
+          title:    Vacuole;
+          body:     A large fluid-filled sac storing nutrients and waste. Maintains internal cell pressure (turgor) essential for structural support.;
+          distance: 5;
+          color:    #2ecc71;
+          audio:    vacuole.mp3;
+        "
+      >
+        <!-- Outer membrane -->
+        <a-sphere
+          radius="2.2"
+          material="
+            color: #4fc3f7; opacity: 0.08; transparent: true;
+            side: double; roughness: 0.05; metalness: 0.1; depthWrite: false;
+            emissive: #1976d2; emissiveIntensity: 0.25;
+          "
+          animation="property: scale; to: 1.05 1.05 1.05; dir: alternate; dur: 6500; loop: true; easing: easeInOutSine;"
+        ></a-sphere>
+        <!-- Inner glow volume -->
+        <a-sphere
+          radius="2.1"
+          material="
+            color: #81d4fa; opacity: 0.04; transparent: true;
+            side: back; roughness: 1; depthWrite: false;
+            emissive: #00b0ff; emissiveIntensity: 0.18;
+          "
+        ></a-sphere>
+        <a-light type="point" color="#0288d1" intensity="0.8" distance="8" decay="2"></a-light>
+      </a-entity>
+
+      <!-- ⑧ PEROXISOMES  ·  teal cyan  ·  near ER -->
+      <a-entity
+        id="peroxisomes"
+        position="-5 0.5 3"
+        organelle-info="
+          title:    Peroxisomes;
+          body:     Detoxifying organelles that break down hydrogen peroxide and fatty acids. Essential for lipid metabolism and cellular cleansing.;
+          distance: 4;
+          color:    #00bcd4;
+          audio:    peroxisomes.mp3;
+        "
+      >
+        <a-sphere radius="0.22" position=" 0    0    0  " material="color:#00bcd4; opacity:0.92; emissive:#006f7e; emissiveIntensity:1.0;
+                                                                     roughness:0.2; metalness:0.2;"
+          animation="property: position; to: 0 0.22 0; dir: alternate; dur: 3800; loop: true; easing: easeInOutSine;"></a-sphere>
+        <a-sphere radius="0.18" position=" 0.6  0.3  0  " material="color:#00e5ff; opacity:0.92; emissive:#006f7e; emissiveIntensity:1.0;
+                                                                      roughness:0.2; metalness:0.2;"
+          animation="property: position; to: 0.6 0.52 0; dir: alternate; dur: 4200; delay:600; loop: true; easing: easeInOutSine;"></a-sphere>
+        <a-sphere radius="0.20" position="-0.4  0.5  0.3" material="color:#00bcd4; opacity:0.92; emissive:#006f7e; emissiveIntensity:1.0;
+                                                                      roughness:0.2; metalness:0.2;"
+          animation="property: position; to: -0.4 0.72 0.3; dir: alternate; dur: 3500; delay:1200; loop: true; easing: easeInOutSine;"></a-sphere>
+        <a-sphere radius="0.16" position=" 0.2 -0.4  0.5" material="color:#00e5ff; opacity:0.92; emissive:#006f7e; emissiveIntensity:1.0;
+                                                                      roughness:0.2; metalness:0.2;"
+          animation="property: position; to: 0.2 -0.18 0.5; dir: alternate; dur: 4600; delay:1800; loop: true; easing: easeInOutSine;"></a-sphere>
+        <a-sphere radius="0.19" position="-0.5 -0.3 -0.3" material="color:#00bcd4; opacity:0.92; emissive:#006f7e; emissiveIntensity:1.0;
+                                                                      roughness:0.2; metalness:0.2;"
+          animation="property: position; to: -0.5 -0.08 -0.3; dir: alternate; dur: 4000; delay:900; loop: true; easing: easeInOutSine;"></a-sphere>
+        <a-sphere radius="0.17" position=" 0.8  0    0.2" material="color:#00e5ff; opacity:0.92; emissive:#006f7e; emissiveIntensity:1.0;
+                                                                      roughness:0.2; metalness:0.2;"
+          animation="property: position; to: 0.8 0.2 0.2; dir: alternate; dur: 3200; delay:300; loop: true; easing: easeInOutSine;"></a-sphere>
+        <a-light type="point" color="#00bcd4" intensity="1.2" distance="7" decay="2"></a-light>
+      </a-entity>
+
+      <!-- ⑨ CENTROSOME  ·  teal cylinders  ·  near nucleus -->
+      <a-entity
+        id="centrosome"
+        position="-3 3.5 -5"
+        organelle-info="
+          title:    Centrosome;
+          body:     The cell's microtubule-organising centre. Two centrioles at right angles direct cell division and anchor the cytoskeletal network.;
+          distance: 3.5;
+          color:    #00b8d4;
+          audio:    centrosome.mp3;
+        "
+      >
+        <!-- Centriole A — vertical -->
+        <a-cylinder radius="0.10" height="0.65" position="0.15 0 0" rotation="0 0 0"
+          material="color:#00b8d4; opacity:0.95; roughness:0.25; metalness:0.55;
+                    emissive:#00838f; emissiveIntensity:1.0;"
+        ></a-cylinder>
+        <!-- Centriole B — perpendicular -->
+        <a-cylinder radius="0.10" height="0.65" position="-0.15 0 0" rotation="90 0 30"
+          material="color:#00cfe8; opacity:0.95; roughness:0.25; metalness:0.55;
+                    emissive:#00838f; emissiveIntensity:1.0;"
+        ></a-cylinder>
+        <!-- PCM halo -->
+        <a-sphere radius="0.55"
+          material="color:#00b8d4; opacity:0.10; transparent:true; side:double; depthWrite:false;
+                    emissive:#00838f; emissiveIntensity:0.50;"
+          animation="property: scale; to: 1.12 1.12 1.12; dir: alternate; dur: 2600; loop: true; easing: easeInOutSine;"
+        ></a-sphere>
+        <a-light type="point" color="#00b8d4" intensity="1.2" distance="7" decay="2"></a-light>
+      </a-entity>
+
+      <!-- ══════════════════════ LIGHTING ══════════════════════ -->
+      <!-- Global ambient — low to let organelle emissives stand out -->
+      <a-light type="ambient"     color="#1e5530"  intensity="0.55"></a-light>
+      <a-light type="hemisphere"  color="#3db882"  ground-color="#3d2e08" intensity="0.45"></a-light>
+
+      <!-- Primary key lights -->
+      <a-light type="directional" position="10  8 -10" color="#6ef5c0" intensity="0.35"></a-light>
+      <a-light type="directional" position="-8 12   8" color="#88ddff" intensity="0.20"></a-light>
+      <a-light type="directional" position=" 0 -5  10" color="#2a8855" intensity="0.15"></a-light>
+
+      <!-- Rim/fill lights to add depth -->
+      <a-light type="point" position=" 12  8   8"  color="#52d4a4" intensity="0.6" distance="35" decay="2"></a-light>
+      <a-light type="point" position="-12  5  -8"  color="#3a9fdc" intensity="0.5" distance="30" decay="2"></a-light>
+      <a-light type="point" position="  0 -8   0"  color="#1a4e28" intensity="0.4" distance="25" decay="2"></a-light>
+
+      <!-- ══════════════════════ SKY ══════════════════════ -->
+      <a-sky color="#010604"></a-sky>
+
+      <!-- ══════════════════════ CAMERA RIG ══════════════════════ -->
+      <a-entity
+        id="rig"
+        position="0 0 11"
+        cell-locomotion="speed: 4.0; acceleration: 12; friction: 10; boundary: 18.5; playerHeight: 1.6"
+      >
+        <a-camera
+          id="camera"
+          look-controls="pointerLockEnabled: true; reverseMouseDrag: false"
+          wasd-controls="enabled: false"
+          camera="userHeight: 1.6"
+          fov="80" near="0.05" far="100"
+        >
+          <a-cursor
+            color="#52d4a4" opacity="0.7"
+            raycaster="objects: .interactive; far: 25"
+          ></a-cursor>
+
+          <a-plane
+            position="0 -0.38 -1" width="0.95" height="0.09"
+            material="color: #000; opacity: 0.45; transparent: true"
+            visible-in-vr-mode="false"
+          >
+            <a-text
+              value="WASD / Arrows — move  |  Mouse — look  |  Walk near organelles to learn more"
+              align="center" color="#52d4a4" width="2.1" position="0 0 0.001"
+            ></a-text>
+          </a-plane>
+        </a-camera>
+
+        <a-entity
+          laser-controls="hand: left"
+          raycaster="objects: .interactive; far: 25; showLine: true; lineColor: #52d4a4; lineOpacity: 0.6"
+        ></a-entity>
+        <a-entity
+          laser-controls="hand: right"
+          raycaster="objects: .interactive; far: 25; showLine: true; lineColor: #52d4a4; lineOpacity: 0.6"
+        ></a-entity>
+      </a-entity>
+
+    </a-scene>
+  </body>
+</html>
